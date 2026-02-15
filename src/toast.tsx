@@ -139,11 +139,15 @@ const createToast = (options: InternalSileoOptions) => {
 
 	const prev = merged.id
 		? live.find((t) => t.id === merged.id)
-		: live[live.length - 1];
-	const id = merged.id ?? prev?.id ?? generateId();
+		: undefined;
+	const id = merged.id ?? generateId();
 	const item = buildSileoItem(merged, id, prev?.position);
 
-	store.update(() => [item]);
+	if (prev) {
+		store.update((p) => p.map((t) => (t.id === id ? item : t)));
+	} else {
+		store.update((p) => [...p, item]);
+	}
 	return { id, duration: merged.duration ?? DEFAULT_DURATION };
 };
 

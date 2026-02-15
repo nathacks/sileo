@@ -18,8 +18,7 @@
 				"default": "./dist/index.js"
 			},
 			"default": "./dist/index.js"
-		},
-		"./dist/styles.css": "./dist/styles.css"
+		}
 	},
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
