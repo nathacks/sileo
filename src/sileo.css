@@ -60,11 +60,10 @@
 	background: transparent;
 	padding: 0;
 	width: var(--sileo-width);
-	height: var(--sileo-button-height, var(--sileo-height));
+	height: var(--_h, var(--sileo-height));
 	opacity: 0;
 	transform: translateZ(0) scale(0.95);
 	transform-origin: center;
-	filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.05));
 	contain: layout style;
 	overflow: visible;
 }
@@ -144,6 +143,17 @@
 	transform-origin: 50% 0%;
 }
 
+[data-sileo-pill] {
+	transform: scaleY(var(--_sy, 1));
+	width: var(--_pw);
+	height: var(--_ph);
+}
+
+[data-sileo-body] {
+	transform: scaleY(var(--_by, 0));
+	opacity: var(--_by, 0);
+}
+
 [data-sileo-toast][data-ready="true"] [data-sileo-pill] {
 	transition:
 		transform var(--sileo-duration) var(--sileo-spring-easing),
@@ -174,10 +184,12 @@
 	padding: 0.5rem;
 	height: var(--sileo-height);
 	overflow: hidden;
+	left: var(--_px, 0px);
+	transform: var(--_ht);
+	max-width: var(--_pw);
 }
 
 [data-sileo-toast][data-ready="true"] [data-sileo-header] {
-	max-width: var(--sileo-pill-width);
 	transition:
 		transform var(--sileo-duration) var(--sileo-spring-easing),
 		left var(--sileo-duration) var(--sileo-spring-easing),
@@ -207,10 +219,12 @@
 	white-space: nowrap;
 	opacity: 1;
 	filter: blur(0px);
+	will-change: opacity, filter;
 }
 
 [data-sileo-header-inner][data-layer="current"] {
-	animation: sileo-header-enter 1s var(--sileo-spring-easing) both;
+	animation: sileo-header-enter var(--sileo-duration) var(--sileo-spring-easing)
+		both;
 }
 
 [data-sileo-header-inner][data-layer="prev"] {
@@ -286,6 +300,11 @@
 	z-index: 10;
 	width: 100%;
 	pointer-events: none;
+	opacity: var(--_co, 0);
+}
+
+[data-sileo-content]:not([data-visible="true"]) {
+	content-visibility: hidden;
 }
 
 [data-sileo-toast][data-ready="true"] [data-sileo-content] {
@@ -457,21 +476,9 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-	[data-sileo-toast][data-ready="true"] {
-		will-change: transform, opacity;
-	}
-
-	[data-sileo-toast][data-ready="true"][data-expanded="true"] {
+	[data-sileo-toast][data-ready="true"]:hover,
+	[data-sileo-toast][data-ready="true"][data-exiting="true"] {
 		will-change: transform, opacity, height;
-	}
-
-	[data-sileo-pill],
-	[data-sileo-body] {
-		will-change: transform;
-	}
-
-	[data-sileo-canvas] {
-		will-change: filter;
 	}
 }
 

@@ -196,9 +196,16 @@ export const Sileo = memo(function Sileo({
 			}
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		let rafId = 0;
+		const ro = new ResizeObserver(() => {
+			cancelAnimationFrame(rafId);
+			rafId = requestAnimationFrame(measure);
+		});
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			cancelAnimationFrame(rafId);
+			ro.disconnect();
+		};
 	}, [headerLayer.current.key]);
 
 	useLayoutEffect(() => {
@@ -213,9 +220,16 @@ export const Sileo = memo(function Sileo({
 			setContentHeight((prev) => (prev === h ? prev : h));
 		};
 		measure();
-		const ro = new ResizeObserver(measure);
+		let rafId = 0;
+		const ro = new ResizeObserver(() => {
+			cancelAnimationFrame(rafId);
+			rafId = requestAnimationFrame(measure);
+		});
 		ro.observe(el);
-		return () => ro.disconnect();
+		return () => {
+			cancelAnimationFrame(rafId);
+			ro.disconnect();
+		};
 	}, [hasDesc]);
 
 	useEffect(() => {
@@ -364,33 +378,18 @@ export const Sileo = memo(function Sileo({
 
 	/* ------------------------------- Inline styles ---------------------------- */
 
-	const viewport = useMemo<CSSProperties>(
-		() => ({ height: open ? expanded : HEIGHT }),
-		[open, expanded],
-	);
-	const pill = useMemo<CSSProperties>(
+	const rootStyle = useMemo<CSSProperties & Record<string, string>>(
 		() => ({
-			transform: `scaleY(${open ? 1 : HEIGHT / expanded})`,
-			width: resolvedPillWidth,
-			height: open ? expanded - 5 : expanded,
+			"--_h": `${open ? expanded : HEIGHT}px`,
+			"--_pw": `${resolvedPillWidth}px`,
+			"--_px": `${pillX}px`,
+			"--_sy": `${open ? 1 : HEIGHT / expanded}`,
+			"--_ph": `${open ? expanded - 5 : expanded}px`,
+			"--_by": `${open ? 1 : 0}`,
+			"--_ht": `translateY(${open ? (expand === "bottom" ? 3 : -3) : 0}px) scale(${open ? 0.9 : 1})`,
+			"--_co": `${open ? 1 : 0}`,
 		}),
-		[open, expanded, resolvedPillWidth],
-	);
-	const body = useMemo<CSSProperties>(
-		() => ({ transform: `scaleY(${open ? 1 : 0})`, opacity: open ? 1 : 0 }),
-		[open],
-	);
-	const header = useMemo(
-		() => ({
-			left: pillX,
-			transform: `translateY(${open ? (expand === "bottom" ? 3 : -3) : 0}px) scale(${open ? 0.9 : 1})`,
-			"--sileo-pill-width": `${resolvedPillWidth}px`,
-		}),
-		[pillX, open, expand, resolvedPillWidth],
-	);
-	const contentStyle = useMemo<CSSProperties>(
-		() => ({ opacity: open ? 1 : 0 }),
-		[open],
+		[open, expanded, resolvedPillWidth, pillX, expand],
 	);
 
 	/* -------------------------------- Handlers -------------------------------- */
@@ -461,8 +460,8 @@ export const Sileo = memo(function Sileo({
 			}
 		};
 
-		el.addEventListener("pointermove", onMove);
-		el.addEventListener("pointerup", onUp);
+		el.addEventListener("pointermove", onMove, { passive: true });
+		el.addEventListener("pointerup", onUp, { passive: true });
 		return () => {
 			el.removeEventListener("pointermove", onMove);
 			el.removeEventListener("pointerup", onUp);
@@ -472,6 +471,8 @@ export const Sileo = memo(function Sileo({
 	const handlePointerDown = useCallback(
 		(e: React.PointerEvent<HTMLButtonElement>) => {
 			if (exiting || !onDismiss) return;
+			const target = e.target as HTMLElement;
+			if (target.closest("[data-sileo-button]")) return;
 			pointerStartRef.current = e.clientY;
 			e.currentTarget.setPointerCapture(e.pointerId);
 		},
@@ -492,7 +493,7 @@ export const Sileo = memo(function Sileo({
 			data-position={position}
 			data-state={view.state}
 			className={className}
-			style={viewport}
+			style={rootStyle}
 			onMouseEnter={handleEnter}
 			onMouseLeave={handleLeave}
 			onTransitionEnd={handleTransitionEnd}
@@ -514,7 +515,6 @@ export const Sileo = memo(function Sileo({
 							rx={resolvedRoundness}
 							ry={resolvedRoundness}
 							fill={view.fill}
-							style={pill}
 						/>
 						<rect
 							data-sileo-body
@@ -524,13 +524,12 @@ export const Sileo = memo(function Sileo({
 							rx={resolvedRoundness}
 							ry={resolvedRoundness}
 							fill={view.fill}
-							style={body}
 						/>
 					</g>
 				</svg>
 			</div>
 
-			<div ref={headerRef} data-sileo-header data-edge={expand} style={header}>
+			<div ref={headerRef} data-sileo-header data-edge={expand}>
 				<div data-sileo-header-stack>
 					<div
 						ref={innerRef}
@@ -582,12 +581,7 @@ export const Sileo = memo(function Sileo({
 			</div>
 
 			{hasDesc && (
-				<div
-					data-sileo-content
-					data-edge={expand}
-					data-visible={open}
-					style={contentStyle}
-				>
+				<div data-sileo-content data-edge={expand} data-visible={open}>
 					<div
 						ref={contentRef}
 						data-sileo-description
@@ -598,6 +592,7 @@ export const Sileo = memo(function Sileo({
 							// biome-ignore lint/a11y/useValidAnchor: cannot use button inside a button
 							<a
 								href="#"
+								type="button"
 								data-sileo-button
 								data-state={view.state}
 								className={view.styles?.button}
