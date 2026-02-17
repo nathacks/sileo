@@ -1,3 +1,4 @@
+import { motion } from "motion/react";
 import {
 	type CSSProperties,
 	type MouseEventHandler,
@@ -11,9 +12,17 @@ import {
 	useRef,
 	useState,
 } from "react";
-import type { SileoButton, SileoState, SileoStyles } from "./types";
-import "./styles.css";
-import { motion } from "motion/react";
+import {
+	BLUR_RATIO,
+	DEFAULT_ROUNDNESS,
+	HEADER_EXIT_MS,
+	HEIGHT,
+	MIN_EXPAND_RATIO,
+	PILL_PADDING,
+	SPRING,
+	SWAP_COLLAPSE_MS,
+	WIDTH,
+} from "./constants";
 import {
 	ArrowRight,
 	Check,
@@ -22,19 +31,8 @@ import {
 	LoaderCircle,
 	X,
 } from "./icons";
-
-/* --------------------------------- Config --------------------------------- */
-
-const HEIGHT = 40;
-const WIDTH = 350;
-const DEFAULT_ROUNDNESS = 18;
-const BLUR_RATIO = 0.5;
-const PILL_PADDING = 10;
-const MIN_EXPAND_RATIO = 2.25;
-const SWAP_COLLAPSE_MS = 200;
-const HEADER_EXIT_MS = 300;
-
-const SPRING = { type: "spring" as const, bounce: 0.25, duration: 0.55 };
+import "./styles.css";
+import type { SileoButton, SileoState, SileoStyles } from "./types";
 
 type State = SileoState;
 
@@ -181,6 +179,10 @@ export const Sileo = memo(function Sileo({
 
 	const headerPadRef = useRef<number | null>(null);
 
+	const pillRoRef = useRef<ResizeObserver | null>(null);
+	const pillRafRef = useRef(0);
+	const pillObservedRef = useRef<Element | null>(null);
+
 	// biome-ignore lint/correctness/useExhaustiveDependencies: headerLayer.current.key is used to force a re-render
 	useLayoutEffect(() => {
 		const el = innerRef.current;
@@ -199,17 +201,37 @@ export const Sileo = memo(function Sileo({
 			}
 		};
 		measure();
-		let rafId = 0;
-		const ro = new ResizeObserver(() => {
-			cancelAnimationFrame(rafId);
-			rafId = requestAnimationFrame(measure);
-		});
-		ro.observe(el);
-		return () => {
-			cancelAnimationFrame(rafId);
-			ro.disconnect();
-		};
+
+		if (!pillRoRef.current) {
+			pillRoRef.current = new ResizeObserver(() => {
+				cancelAnimationFrame(pillRafRef.current);
+				pillRafRef.current = requestAnimationFrame(() => {
+					const inner = innerRef.current;
+					const pad = headerPadRef.current ?? 0;
+					if (!inner) return;
+					const w = inner.scrollWidth + pad + PILL_PADDING;
+					if (w > PILL_PADDING) {
+						setPillWidth((prev) => (prev === w ? prev : w));
+					}
+				});
+			});
+		}
+
+		if (pillObservedRef.current !== el) {
+			if (pillObservedRef.current) {
+				pillRoRef.current.unobserve(pillObservedRef.current);
+			}
+			pillRoRef.current.observe(el);
+			pillObservedRef.current = el;
+		}
 	}, [headerLayer.current.key]);
+
+	useEffect(() => {
+		return () => {
+			cancelAnimationFrame(pillRafRef.current);
+			pillRoRef.current?.disconnect();
+		};
+	}, []);
 
 	useLayoutEffect(() => {
 		if (!hasDesc) {
@@ -399,9 +421,15 @@ export const Sileo = memo(function Sileo({
 		[open, expandedContent],
 	);
 
-	const bodyTransition = open ? SPRING : { ...SPRING, bounce: 0 };
+	const bodyTransition = useMemo(
+		() => (open ? SPRING : { ...SPRING, bounce: 0 }),
+		[open],
+	);
 
-	const pillTransition = ready ? SPRING : { duration: 0 };
+	const pillTransition = useMemo(
+		() => (ready ? SPRING : { duration: 0 }),
+		[ready],
+	);
 
 	const viewBox = `0 0 ${WIDTH} ${svgHeight}`;
 
@@ -469,35 +497,36 @@ export const Sileo = memo(function Sileo({
 	const onDismissRef = useRef(onDismiss);
 	onDismissRef.current = onDismiss;
 
-	useEffect(() => {
-		const el = buttonRef.current;
-		if (!el) return;
+	const swipeHandlersRef = useRef<{
+		onMove: (e: PointerEvent) => void;
+		onUp: (e: PointerEvent) => void;
+	} | null>(null);
 
-		const onMove = (e: PointerEvent) => {
-			if (pointerStartRef.current === null) return;
-			const dy = e.clientY - pointerStartRef.current;
-			const sign = dy > 0 ? 1 : -1;
-			const clamped = Math.min(Math.abs(dy), SWIPE_MAX) * sign;
-			el.style.transform = `translateY(${clamped}px)`;
+	if (!swipeHandlersRef.current) {
+		const handlers = {
+			onMove: (e: PointerEvent) => {
+				const el = buttonRef.current;
+				if (pointerStartRef.current === null || !el) return;
+				const dy = e.clientY - pointerStartRef.current;
+				const sign = dy > 0 ? 1 : -1;
+				const clamped = Math.min(Math.abs(dy), SWIPE_MAX) * sign;
+				el.style.transform = `translateY(${clamped}px)`;
+			},
+			onUp: (e: PointerEvent) => {
+				const el = buttonRef.current;
+				if (pointerStartRef.current === null || !el) return;
+				const dy = e.clientY - pointerStartRef.current;
+				pointerStartRef.current = null;
+				el.style.transform = "";
+				el.removeEventListener("pointermove", handlers.onMove);
+				el.removeEventListener("pointerup", handlers.onUp);
+				if (Math.abs(dy) > SWIPE_DISMISS) {
+					onDismissRef.current?.();
+				}
+			},
 		};
-
-		const onUp = (e: PointerEvent) => {
-			if (pointerStartRef.current === null) return;
-			const dy = e.clientY - pointerStartRef.current;
-			pointerStartRef.current = null;
-			el.style.transform = "";
-			if (Math.abs(dy) > SWIPE_DISMISS) {
-				onDismissRef.current?.();
-			}
-		};
-
-		el.addEventListener("pointermove", onMove, { passive: true });
-		el.addEventListener("pointerup", onUp, { passive: true });
-		return () => {
-			el.removeEventListener("pointermove", onMove);
-			el.removeEventListener("pointerup", onUp);
-		};
-	}, []);
+		swipeHandlersRef.current = handlers;
+	}
 
 	const handleButtonClick = useCallback(
 		(e: React.MouseEvent) => {
@@ -515,6 +544,12 @@ export const Sileo = memo(function Sileo({
 			if (target.closest("[data-sileo-button]")) return;
 			pointerStartRef.current = e.clientY;
 			e.currentTarget.setPointerCapture(e.pointerId);
+			const el = buttonRef.current;
+			const h = swipeHandlersRef.current;
+			if (el && h) {
+				el.addEventListener("pointermove", h.onMove, { passive: true });
+				el.addEventListener("pointerup", h.onUp, { passive: true });
+			}
 		},
 		[exiting, onDismiss],
 	);

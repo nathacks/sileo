@@ -8,20 +8,14 @@ import {
 	useRef,
 	useState,
 } from "react";
-import { Sileo } from "./sileo";
 import {
-	SILEO_POSITIONS,
-	type SileoOptions,
-	type SileoPosition,
-	type SileoState,
-} from "./types";
-
-/* -------------------------------- Constants ------------------------------- */
-
-const DEFAULT_DURATION = 6000;
-const EXIT_DURATION = DEFAULT_DURATION * 0.1;
-const AUTO_EXPAND_DELAY = DEFAULT_DURATION * 0.025;
-const AUTO_COLLAPSE_DELAY = DEFAULT_DURATION - 2000;
+	AUTO_COLLAPSE_DELAY,
+	AUTO_EXPAND_DELAY,
+	DEFAULT_TOAST_DURATION,
+	EXIT_DURATION,
+} from "./constants";
+import { Sileo } from "./sileo";
+import type { SileoOptions, SileoPosition, SileoState } from "./types";
 
 const pillAlign = (pos: SileoPosition) =>
 	pos.includes("right") ? "right" : pos.includes("center") ? "center" : "left";
@@ -121,7 +115,7 @@ const buildSileoItem = (
 	id: string,
 	fallbackPosition?: SileoPosition,
 ): SileoItem => {
-	const duration = merged.duration ?? DEFAULT_DURATION;
+	const duration = merged.duration ?? DEFAULT_TOAST_DURATION;
 	const auto = resolveAutopilot(merged, duration);
 	return {
 		...merged,
@@ -146,7 +140,7 @@ const createToast = (options: InternalSileoOptions) => {
 	} else {
 		store.update((p) => [...p.filter((t) => t.id !== id), item]);
 	}
-	return { id, duration: merged.duration ?? DEFAULT_DURATION };
+	return { id, duration: merged.duration ?? DEFAULT_TOAST_DURATION };
 };
 
 const updateToast = (id: string, options: InternalSileoOptions) => {
@@ -261,7 +255,7 @@ export function Toaster({
 			const key = timeoutKey(item);
 			if (timersRef.current.has(key)) continue;
 
-			const dur = item.duration ?? DEFAULT_DURATION;
+			const dur = item.duration ?? DEFAULT_TOAST_DURATION;
 			if (dur === null || dur <= 0) continue;
 
 			timersRef.current.set(
@@ -376,15 +370,15 @@ export function Toaster({
 		[offset],
 	);
 
-	const byPosition = useMemo(() => {
-		const map = {} as Partial<Record<SileoPosition, SileoItem[]>>;
+	const activePositions = useMemo(() => {
+		const map = new Map<SileoPosition, SileoItem[]>();
 		for (const t of toasts) {
 			const pos = t.position ?? position;
-			const arr = map[pos];
+			const arr = map.get(pos);
 			if (arr) {
 				arr.push(t);
 			} else {
-				map[pos] = [t];
+				map.set(pos, [t]);
 			}
 		}
 		return map;
@@ -393,10 +387,7 @@ export function Toaster({
 	return (
 		<>
 			{children}
-			{SILEO_POSITIONS.map((pos) => {
-				const items = byPosition[pos];
-				if (!items?.length) return null;
-
+			{Array.from(activePositions, ([pos, items]) => {
 				const pill = pillAlign(pos);
 				const expand = expandDir(pos);
 
