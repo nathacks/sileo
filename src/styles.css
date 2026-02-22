@@ -469,9 +469,9 @@
 /* --------------------------------- Themes -------------------------------- */
 
 [data-sileo-viewport][data-theme="dark"] [data-sileo-description] {
-	color: rgba(255, 255, 255, 0.8);
+	color: rgba(255, 255, 255, 0.75);
 }
 
 [data-sileo-viewport][data-theme="light"] [data-sileo-description] {
-	color: rgba(0, 0, 0, 0.7);
+	color: rgba(0, 0, 0, 0.75);
 }

@@ -47,7 +47,7 @@ export interface SileoToasterProps {
 	position?: SileoPosition;
 	offset?: SileoOffsetValue | SileoOffsetConfig;
 	options?: Partial<SileoOptions>;
-	theme?: 'light' | 'dark' | 'system';
+	theme?: "light" | "dark" | "system";
 }
 
 /* ------------------------------ Global State ------------------------------ */
@@ -153,7 +153,7 @@ const updateToast = (id: string, options: InternalSileoOptions) => {
 };
 
 export interface SileoPromiseOptions<T = unknown> {
-	loading: Pick<SileoOptions, "title" | "icon">;
+	loading: SileoOptions;
 	success: SileoOptions | ((data: T) => SileoOptions);
 	error: SileoOptions | ((err: unknown) => SileoOptions);
 	action?: SileoOptions | ((data: T) => SileoOptions);
@@ -215,27 +215,32 @@ export const sileo = {
 /* ------------------------------ Toaster Component ------------------------- */
 
 const THEME_FILLS = {
-	light: '#FFFFFF',
-	dark: '#1a1a1a',
+	light: "#ffffff",
+	dark: "#1a1a1a",
 } as const;
 
-function useResolvedTheme(theme: 'light' | 'dark' | 'system' | undefined): 'light' | 'dark' {
-	const [resolved, setResolved] = useState<'light' | 'dark'>(() => {
-		if (theme === 'light' || theme === 'dark') return theme;
-		if (typeof window === 'undefined') return 'light';
-		return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+function useResolvedTheme(
+	theme: "light" | "dark" | "system" | undefined,
+): "light" | "dark" {
+	const [resolved, setResolved] = useState<"light" | "dark">(() => {
+		if (theme === "light" || theme === "dark") return theme;
+		if (typeof window === "undefined") return "light";
+		return window.matchMedia("(prefers-color-scheme: dark)").matches
+			? "dark"
+			: "light";
 	});
 
 	useEffect(() => {
-		if (theme === 'light' || theme === 'dark') {
+		if (theme === "light" || theme === "dark") {
 			setResolved(theme);
 			return;
 		}
-		const mq = window.matchMedia('(prefers-color-scheme: dark)');
-		const handler = (e: MediaQueryListEvent) => setResolved(e.matches ? 'dark' : 'light');
-		setResolved(mq.matches ? 'dark' : 'light');
-		mq.addEventListener('change', handler);
-		return () => mq.removeEventListener('change', handler);
+		const mq = window.matchMedia("(prefers-color-scheme: dark)");
+		const handler = (e: MediaQueryListEvent) =>
+			setResolved(e.matches ? "dark" : "light");
+		setResolved(mq.matches ? "dark" : "light");
+		mq.addEventListener("change", handler);
+		return () => mq.removeEventListener("change", handler);
 	}, [theme]);
 
 	return resolved;
@@ -286,8 +291,9 @@ export function Toaster({
 			const key = timeoutKey(item);
 			if (timersRef.current.has(key)) continue;
 
+			if (item.duration === null) continue;
 			const dur = item.duration ?? DEFAULT_TOAST_DURATION;
-			if (dur === null || dur <= 0) continue;
+			if (dur <= 0) continue;
 
 			timersRef.current.set(
 				key,
