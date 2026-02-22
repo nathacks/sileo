@@ -215,8 +215,8 @@ export const sileo = {
 /* ------------------------------ Toaster Component ------------------------- */
 
 const THEME_FILLS = {
-	light: "#ffffff",
-	dark: "#1a1a1a",
+	light: "#1a1a1a",
+	dark: "#f2f2f2",
 } as const;
 
 function useResolvedTheme(
@@ -274,9 +274,8 @@ export function Toaster({
 
 	useEffect(() => {
 		store.position = position;
-		const fill = theme ? THEME_FILLS[resolvedTheme] : undefined;
-		store.options = fill ? { ...options, fill } : options;
-	}, [position, options, theme, resolvedTheme]);
+		store.options = options;
+	}, [position, options]);
 
 	const clearAllTimers = useCallback(() => {
 		for (const t of timersRef.current.values()) clearTimeout(t);
@@ -449,7 +448,7 @@ export function Toaster({
 									position={pill}
 									expand={expand}
 									icon={item.icon}
-									fill={item.fill}
+									fill={item.fill ?? (theme ? THEME_FILLS[resolvedTheme] : undefined)}
 									styles={item.styles}
 									button={item.button}
 									roundness={item.roundness}

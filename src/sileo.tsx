@@ -292,6 +292,12 @@ export const Sileo = memo(function Sileo({
 		};
 	}, [headerLayer.prev]);
 
+	/* ----------------------------- Sync fill ---------------------------------- */
+
+	useEffect(() => {
+		setView((prev) => (prev.fill === fill ? prev : { ...prev, fill }));
+	}, [fill]);
+
 	/* ----------------------------- Refresh logic ------------------------------ */
 
 	useEffect(() => {
